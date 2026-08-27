@@ -12,6 +12,15 @@ install.packages("ExcursionDependence/ExcursionSets_0.0.4.tar.gz")
 ```
 The ExcursionSets_0.0.4.tar.gz file was initially made available in the [Local-Excursion-Set-Coefficients](https://github.com/pony-helping-treat/Local-Excursion-Set-Coefficients) repository.
 Furthermore, obtain the code needed for unbiased excursion set perimeter estimation by cloning the [excursion-sets](https://github.com/RyanCotsakis/excursion-sets) repository. 
+Lastly, if not already installed, the following should be executed
+```r
+install.packages(c("this.path",
+                   "evd",
+                   "truncnorm",
+                   "rmutil",
+                   "imager",
+                   "terra"))
+```
 
 
 ## Rainfall data
