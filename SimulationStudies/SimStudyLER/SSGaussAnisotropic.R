@@ -1,0 +1,90 @@
+rm(list=ls())
+library(this.path)
+library(SpatialExtremes)
+library(fields)
+library(evd)
+# library(mev)
+library(geoR)
+library(this.path)
+library(plotly)
+setwd(this.path::here())
+
+# install.packages("~/nice/Local-Excursion-Set-Coefficients/ExcursionSets_0.0.4.tar.gz")
+library(ExcursionSets)
+
+library(quantreg)
+
+source("../Functions.R")
+
+##############################################################################
+
+HALF_WIDTH <- 0.5 
+SIDE_LENGTH <- 121
+x = y = seq(-HALF_WIDTH, HALF_WIDTH, length.out = SIDE_LENGTH)  # c(-0.5,0.5), grid spacing 0.02
+S.coord.grid = expand.grid(x,y)
+cond_site = data.frame("x" = 0,"y" = 0)
+
+# Generate GRF
+# thet = pi/32
+# anis = matrix(c(2,1,1,0.5),2,2) %*% rbind(c(cos(thet),sin(thet)),c(-sin(thet),cos(sin(thet)))) #matrix(c(2,1,1,2),2,2)
+# plot(S.coord.grid)
+anis = matrix(c(2,1,1,1.5),2,2)
+S.coord.grid.anis = t(apply(S.coord.grid,1,function(vec){
+  vec = matrix(vec,ncol=1)
+  return(as.numeric(anis %*% vec))
+}))
+# plot(S.coord.grid.anis)
+
+# range=0.3
+# nu=2.5
+# cov.fn = cov.model("Matern", range=range, nu = nu)
+range=0.3
+sigma=1
+cov.fn = function(h) {
+  h = h/range
+  return(sigma^2 * exp(-(h^2)))
+}
+gen = random.field.generator(grid=S.coord.grid,
+                             cov_fun=cov.fn,
+                             cond_sites = cond_site)
+x.axis = seq(1.097189,2.443470,length.out=50) # to have matching x axis on all plots on the log(-log(1-p))
+p.vals = 1-exp(-exp(x.axis))
+u.vals = qnorm(p.vals)  # the threshold values
+
+N.beta = 200
+N.rep = 50
+beta.est.vec = c()
+
+for(rep in 1:N.beta){
+  print(paste("Simulation Study repetition",rep))
+  
+  QR.data.mat = NULL
+  
+  for(u in u.vals){
+    
+    epys = c()
+    lers = c()
+    
+    for (simulation in 1:N.rep){
+      rf = generateGaussian.truncnorm(generator=gen, cond_val=u, exceedance = TRUE)
+      rf$grid = S.coord.grid.anis
+      # plotRandomField.v2(rf,x,y,thresh=u)
+      ep = extent.profile(rf, u, x0 = cond_site)
+      epys = cbind(epys, ep$y)
+      ler = proportion.range(ep, 1)
+      ler = ifelse(is.infinite(ler),norm(c(1.5,1.5),type="2"),ler)
+      QR.data.mat = rbind(QR.data.mat,c(log(ler),-log(-log(1-pnorm(u)))))
+    }
+  }
+  
+  QR.data.df = data.frame(X=QR.data.mat[,2],Y=QR.data.mat[,1])
+  fit = rq(Y~X, data=QR.data.df)
+  beta.est = coefficients(fit)[2]
+  
+  beta.est.vec = c(beta.est.vec,beta.est)
+  print(beta.est.vec)
+  save(beta.est.vec,file="SSGaussAnisotropic_SqExp.RData")
+}
+
+# hist(beta.est.vec)
+

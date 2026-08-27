@@ -5,8 +5,8 @@ This repository is for reproduction of the results and figures in the manuscript
 
 ## Dependencies
 
-Prior to using the R code in this repository, install the code needed for calculating the lower extremal range (LER) of excursion sets by installing the ExcursionSets R package. 
-This can be done using
+After cloning this repository, install the code needed for calculating the lower extremal range (LER) of excursion sets by installing the ExcursionSets R package. 
+This can be done with
 ```r
 install.packages("ExcursionDependence/ExcursionSets_0.0.4.tar.gz")
 ```
