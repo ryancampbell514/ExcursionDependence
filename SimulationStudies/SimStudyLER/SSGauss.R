@@ -40,7 +40,7 @@ p.vals = 1-exp(-exp(x.axis))
 u.vals = qnorm(p.vals)  # the threshold values, marginal quantile function applied
 
 N.beta = 200
-N.rep = 50
+N.rep = 30
 beta.est.vec = c()
 
 for(rep in 1:N.beta){

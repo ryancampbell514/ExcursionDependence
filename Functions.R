@@ -317,6 +317,95 @@ make_rho_squexp <- function(l, sigma2 = 1) {
   }
 }
 
+
+
+simulate_BrownResnick <- function(n, L, ell, K = 1000) {
+  
+  stopifnot(n >= 2, L > 0, ell > 0, K >= 1)
+  
+  # 1. Grid
+  x <- seq(-L / 2, L / 2, length.out = n)
+  dx <- L / (n - 1)
+  
+  i0 <- which.min(abs(x))
+  
+  # 2. Circulant embedding
+  # Embedding dimension (power of 2)
+  m <- 2^ceiling(log2(2 * n))
+  
+  j <- 0:(n - 1)
+  
+  # Squared-exponential covariance
+  c1 <- exp(-0.5 * (j * dx / ell)^2)
+  
+  # Symmetric circulant embedding
+  cemb <- numeric(m)
+  cemb[1:n] <- c1
+  cemb[m - j[-1] + 1] <- c1[-1]
+  
+  # Eigenvalues
+  lambda1 <- Re(fft(cemb))
+  
+  if (min(lambda1) < -1e-8) {
+    stop("Circulant embedding is not positive definite.")
+  }
+  
+  lambda1 <- pmax(lambda1, 0)
+  
+  # Separable 2D covariance
+  sqrt_lambda2 <- sqrt(outer(lambda1, lambda1))
+  
+  # 3. Half variogram relative to anchor
+  half_vario <- 1 - exp(
+    -outer(
+      (x - x[i0])^2,
+      (x - x[i0])^2,
+      "+"
+    ) / (2 * ell^2)
+  )
+  
+  # 4. Poisson points
+  Gamma <- cumsum(rexp(K))
+  
+  # 5. Running maximum
+  logZ <- matrix(-Inf, n, n)
+  
+  for (i in seq_len(K)) {
+    
+    eps <- matrix(rnorm(m * m), m, m)
+    
+    # FFT Gaussian simulation
+    Gfull <- Re(
+      fft(
+        sqrt_lambda2 * fft(eps),
+        inverse = TRUE
+      )
+    ) / m^2
+    
+    # Crop to original grid
+    G <- Gfull[1:n, 1:n]
+    
+    # Stationary increments
+    W <- G - G[i0, i0]
+    
+    # Brown-Resnick spectral function
+    logY <- -log(Gamma[i]) + W - half_vario
+    
+    logZ <- pmax(logZ, logY)
+  }
+  
+  list(
+    Z = exp(logZ),
+    x = x,
+    y = x,
+    n = n,
+    L = L,
+    ell = ell,
+    K = K
+  )
+}
+
+
 # setup.GRF.inla = function(nu=2.5,range=3,alpha=2,sigma0=1,
 #                           xlim=c(-15,15),ylim=c(-15,15),
 #                           nx=60,ny=60,thresh=NULL,aniso=NULL){
@@ -620,58 +709,58 @@ terra.ler = function(rf=NULL,bf=NULL,thresh,half.width,s0){
   return(ler) 
 }
 
-# raster.crop = function(rf.obs,crop.len,lon,lat){
-#   half.crop.len=ceiling(crop.len/2)
-#   
-#   loc <- terra::vect(data.frame(lon=lon, lat=lat),crs="EPSG:4326")
-#   s0_proj <- terra::project(loc, crs(rf.obs))
-#   cell <- terra::cellFromXY(rf.obs, terra::crds(s0_proj))
-#   xy   <- terra::xyFromCell(rf.obs, cell)
-#   res_r <- terra::res(rf.obs)
-#   win <- terra::ext(
-#     xy[1] - half.crop.len*res_r[1], xy[1] + half.crop.len*res_r[1],
-#     xy[2] - half.crop.len*res_r[2], xy[2] + half.crop.len*res_r[2]
-#   )
-#   
-#   # this takes the most time...
-#   rf.crop <- terra::resample(terra::crop(rf.obs, win),
-#                              terra::rast(win, 
-#                                          resolution=res_r, 
-#                                          crs=terra::crs(rf.obs)))
-#   
-#   return(rf.crop)
-# }
-# 
-# raster.cc = function(rf.obs,thresh,lon,lat){
-#   # this function takes in a random field ans threshold, and returns the 
-#   # binary field with connected component containing lon and lat.
-#   
-#   # warning("this can cause problems")
-#   exc <- (rf.obs > thresh)#*1
-#   
-#   # plot(exc)
-#   # points(s0_proj, col="red", pch=16, cex=1.2)
-#   cl <- terra::patches(exc,values=T)
-#   
-#   # cl
-#   loc <- terra::vect(data.frame(lon=lon, lat=lat),crs="EPSG:4326")
-#   s0_proj <- terra::project(loc, terra::crs(rf.obs))
-#   loc_cell <- terra::cellFromXY(cl, terra::crds(s0_proj))
-# 
-#   loc_id <- terra::values(cl)[loc_cell]
-# 
-#   # loc_id
-#   exc_loc <- cl
-#   exc_loc[exc_loc != loc_id] <- 0
-#   exc_loc[exc_loc == loc_id] <- 1
-#   
-#   bf = as.vector(exc_loc)
-#   bf <- matrix(bf, nrow = sqrt(length(bf)), ncol = sqrt(length(bf)), byrow = TRUE)
-#   bf = t(bf)
-#   bf <- bf[, nrow(bf):1]
-#   
-#   return(bf)
-# }
+raster.crop = function(rf.obs,crop.len,lon,lat){
+  half.crop.len=ceiling(crop.len/2)
+
+  loc <- terra::vect(data.frame(lon=lon, lat=lat),crs="EPSG:4326")
+  s0_proj <- terra::project(loc, crs(rf.obs))
+  cell <- terra::cellFromXY(rf.obs, terra::crds(s0_proj))
+  xy   <- terra::xyFromCell(rf.obs, cell)
+  res_r <- terra::res(rf.obs)
+  win <- terra::ext(
+    xy[1] - half.crop.len*res_r[1], xy[1] + half.crop.len*res_r[1],
+    xy[2] - half.crop.len*res_r[2], xy[2] + half.crop.len*res_r[2]
+  )
+
+  # this takes the most time...
+  rf.crop <- terra::resample(terra::crop(rf.obs, win),
+                             terra::rast(win,
+                                         resolution=res_r,
+                                         crs=terra::crs(rf.obs)))
+
+  return(rf.crop)
+}
+
+raster.cc = function(rf.obs,thresh,lon,lat){
+  # this function takes in a random field ans threshold, and returns the
+  # binary field with connected component containing lon and lat.
+
+  # warning("this can cause problems")
+  exc <- (rf.obs > thresh)#*1
+
+  # plot(exc)
+  # points(s0_proj, col="red", pch=16, cex=1.2)
+  cl <- terra::patches(exc,values=T)
+
+  # cl
+  loc <- terra::vect(data.frame(lon=lon, lat=lat),crs="EPSG:4326")
+  s0_proj <- terra::project(loc, terra::crs(rf.obs))
+  loc_cell <- terra::cellFromXY(cl, terra::crds(s0_proj))
+
+  loc_id <- terra::values(cl)[loc_cell]
+
+  # loc_id
+  exc_loc <- cl
+  exc_loc[exc_loc != loc_id] <- 0
+  exc_loc[exc_loc == loc_id] <- 1
+
+  bf = as.vector(exc_loc)
+  bf <- matrix(bf, nrow = sqrt(length(bf)), ncol = sqrt(length(bf)), byrow = TRUE)
+  bf = t(bf)
+  bf <- bf[, nrow(bf):1]
+
+  return(bf)
+}
 # 
 # terra.perim = function(rf.obs,thresh,lon,lat){
 #   # excursion set
@@ -805,24 +894,26 @@ terra.ler = function(rf=NULL,bf=NULL,thresh,half.width,s0){
 # }
 
 # L1-based perimeter estimation, ignoring boundaries
-perim.L1.na.rm <- function(bf, dx = 1, dy = 1) {
+perim.L1.na.rm <- function(bf, dx = 1, dy = 1, incl_boundary=FALSE) {
   
   nr <- nrow(bf)
   nc <- ncol(bf)
+  
+  if(incl_boundary){
+    bf[is.na(bf)] <- 0
+  }
   
   # left-right neighbors
   A <- bf[, -1, drop = FALSE]
   B <- bf[, -nc, drop = FALSE]
   
-  vertical_transitions <-
-    sum((A == 1 & B == 0) | (A == 0 & B == 1), na.rm = TRUE)
+  vertical_transitions = sum((A == 1 & B == 0) | (A == 0 & B == 1), na.rm = !incl_boundary)
   
   # up-down neighbors
   A <- bf[-1, , drop = FALSE]
   B <- bf[-nr, , drop = FALSE]
   
-  horizontal_transitions <-
-    sum((A == 1 & B == 0) | (A == 0 & B == 1), na.rm = TRUE)
+  horizontal_transitions = sum((A == 1 & B == 0) | (A == 0 & B == 1), na.rm = !incl_boundary)
   
   dy * vertical_transitions +
     dx * horizontal_transitions

@@ -7,8 +7,11 @@ load("/scratch/rcampbell/nice/SimStudyLER_directsim/SSGaussAnisotropic_SqExp.RDa
 gaussaniso.res = beta.est.vec
 load("/scratch/rcampbell/nice/SimStudyLER_directsim/SSChisq_SqExp.RData")
 chisq.res = beta.est.vec
-load("/scratch/rcampbell/nice/SimStudyLER_directsim/SSParetoGauss_SqExp.RData")
-paretoguss.res = beta.est.vec
+# load("/scratch/rcampbell/nice/SimStudyLER_directsim/SSParetoGauss_SqExp.RData")
+# paretoguss.res = beta.est.vec
+# load("/scratch/rcampbell/nice/SimStudyLER_directsim/SSSmith_faster.RData")
+load("SSSmith_faster_highersigma.RData")
+smith.res = beta.est.vec
 # load("SSStudent.RData")
 # student.res = beta.est.vec
 # load("SSEllipticalStudent.RData")
@@ -28,11 +31,12 @@ paretoguss.res = beta.est.vec
 
 # rm(beta.est.vec)
 
-pdf("resultsLERbetas.pdf",width=8,height=6)
+pdf("../figs/resultsLERbetas.pdf",width=8,height=6)
 boxplot(gauss.res,
         gaussaniso.res,
         chisq.res,
-        paretoguss.res,
+        # paretoguss.res,
+        smith.res,
         # laplace.res,
         # ellipticstudent.res,
         # stable.res,
@@ -42,8 +46,8 @@ boxplot(gauss.res,
 x_labs = c("Gauss.",
            "Gauss. Aniso.",
            "Chi Sq.",
-           "Pareto * Gauss."
+           "Smith"
 )
 axis(1, at=1:length(x_labs), labels = x_labs)    # add tick marks
-abline(h=c(0,0.5),lty=2)
+abline(h=c(0,0.5),lty=2,lwd=1,col="red")
 dev.off()

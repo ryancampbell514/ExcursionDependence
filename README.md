@@ -19,7 +19,8 @@ install.packages(c("this.path",
                    "truncnorm",
                    "rmutil",
                    "imager",
-                   "terra"))
+                   "terra",
+                   "quantreg"))
 ```
 
 
