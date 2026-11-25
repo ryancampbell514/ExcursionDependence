@@ -12,7 +12,7 @@ install.packages("ExcursionDependence/ExcursionSets_0.0.4.tar.gz")
 ```
 The ExcursionSets_0.0.4.tar.gz file was initially made available in the [Local-Excursion-Set-Coefficients](https://github.com/pony-helping-treat/Local-Excursion-Set-Coefficients) repository.
 Furthermore, obtain the code needed for unbiased excursion set perimeter estimation by cloning the [excursion-sets](https://github.com/RyanCotsakis/excursion-sets) repository. 
-To install the now-defunct SpatialExtremes package (used in one simulation study script to simulate the max-stabel Smith model), execute the following
+To install the now-defunct SpatialExtremes package (used in one simulation study script to simulate from the max-stabel Smith model), execute the following
 ```{r}
 install.packages(
   "SpatialExtremes",
