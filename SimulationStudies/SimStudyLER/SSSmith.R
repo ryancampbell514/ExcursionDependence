@@ -6,16 +6,15 @@ library(geoR)
 library(this.path)
 library(plotly)
 setwd(this.path::here())
-
-# install.packages("~/nice/Local-Excursion-Set-Coefficients/ExcursionSets_0.0.4.tar.gz")
 library(ExcursionSets)
-
 library(quantreg)
 
 source("../Functions.R")
 
 ##############################################################################
 
+# In this script, we use the custom R function to sample the conditional Smith model,
+# described in Section 3.2 of the manuscript
 rSmith_exceeding_storms <- function(u, sigma = 1) {
   
   stopifnot(u > 0, sigma > 0)
@@ -74,14 +73,10 @@ for(rep in 1:N.beta){
   QR.data.mat = NULL
   
   for(u in u.vals){
-    # print(u)
     epys = c()
     lers = c()
     
     for (simulation in 1:N.rep){
-      # print(simulation)
-      # v <- runif(1)
-      # z <- -1 / log(exp(-1/u) + v * (1 - exp(-1/u)))
       
       storms <- rSmith_exceeding_storms(
         u = u,
@@ -106,18 +101,6 @@ for(rep in 1:N.beta){
       if(sum(Z>u)==0){next}  # occasionally my sampling method fails
       
       rf = random.field(Z,S.coord.grid)
-      # plotRandomField.v2(rf,x,y)
-      # plotRandomField.v2(rf,x,y,thresh=u)
-      
-      # ler <- tryCatch({
-      #   # Put your expression or function call here
-      #   ep = extent.profile(rf, u, x0 = cond_site)
-      #   ler = proportion.range(ep, 1)
-      # }, error = function(e) {
-      #   # This block runs only if an error occurs
-      #   return(0)
-      # })
-      # if(ler==0){next}
       
       rf.mat = matrix(rf$values,length(x),length(y))
       bf.mat = (rf.mat>=u) *1
@@ -136,23 +119,13 @@ for(rep in 1:N.beta){
   
   QR.data.df = data.frame(X=QR.data.mat[,2],Y=QR.data.mat[,1])
   QR.data.df = QR.data.df %>% filter(Y>min(Y))
-  # plot(QR.data.df)
-  if(rep==1){
-    # save(QR.data.df, file="QRdat_Smith_faster.RData")
-  }
-  # QR.data.df = QR.data.df %>% filter(Y>0)
+
   fit = rq(Y~X, data=QR.data.df)
   beta.est = coefficients(fit)[2]
   
   beta.est.vec = c(beta.est.vec,beta.est)
-  # save(beta.est.vec,file="SSSmith_faster.RData")
   print(beta.est.vec)
+  save(beta.est.vec,file="SSSmith.RData")
+  
 }
 
-stop()
-
-# load("/scratch/rcampbell/nice/SimStudyLER_directsim/SSSmith_faster.RData")
-beta.est.vec
-boxplot(beta.est.vec)
-abline(h=0)
-save(beta.est.vec,file="SSSmith_faster_highersigma.RData")

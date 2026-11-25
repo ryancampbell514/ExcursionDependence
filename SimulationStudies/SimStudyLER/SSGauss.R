@@ -7,7 +7,6 @@ library(this.path)
 library(plotly)
 setwd(this.path::here())
 
-# install.packages("~/nice/Local-Excursion-Set-Coefficients/ExcursionSets_0.0.4.tar.gz")
 library(ExcursionSets)
 
 library(quantreg)
@@ -16,17 +15,14 @@ source("../Functions.R")
 
 ##############################################################################
 
-HALF_WIDTH <- 0.5
+HALF_WIDTH <- 15#0.5
 SIDE_LENGTH <- 121
 x = y = seq(-HALF_WIDTH, HALF_WIDTH, length.out = SIDE_LENGTH)  # c(-0.5,0.5), grid spacing 0.02
 S.coord.grid = expand.grid(x,y)
 cond_site = data.frame("x" = 0,"y" = 0)
 
 # Generate GRF
-# range=0.3
-# nu=2.5
-# cov.fn = cov.model("Matern", range=range, nu = nu)
-range=0.3
+range=9#0.3
 sigma=1
 cov.fn = function(h) {
   h = h/range
@@ -54,7 +50,6 @@ for(rep in 1:N.beta){
     
     for (simulation in 1:N.rep){
       rf = generateGaussian.truncnorm(generator=gen, cond_val=u, exceedance = TRUE)
-      # plotRandomField.v2(rf,x,y,thresh=u)
       ep = extent.profile(rf, u, x0 = cond_site)
       epys = cbind(epys, ep$y)
       ler = proportion.range(ep, 1)
@@ -68,9 +63,7 @@ for(rep in 1:N.beta){
   beta.est = coefficients(fit)[2]
   
   beta.est.vec = c(beta.est.vec,beta.est)
-  save(beta.est.vec,file="SSGauss_SqExp.RData")
+  save(beta.est.vec,file="SSGauss.RData")
   print(beta.est.vec)
 }
-
-# hist(beta.est.vec)
 

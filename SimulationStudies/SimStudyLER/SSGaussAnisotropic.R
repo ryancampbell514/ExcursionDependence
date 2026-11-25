@@ -3,13 +3,11 @@ library(this.path)
 library(SpatialExtremes)
 library(fields)
 library(evd)
-# library(mev)
 library(geoR)
 library(this.path)
 library(plotly)
 setwd(this.path::here())
 
-# install.packages("~/nice/Local-Excursion-Set-Coefficients/ExcursionSets_0.0.4.tar.gz")
 library(ExcursionSets)
 
 library(quantreg)
@@ -18,27 +16,19 @@ source("../Functions.R")
 
 ##############################################################################
 
-HALF_WIDTH <- 0.5 
+HALF_WIDTH <- 15#0.5 
 SIDE_LENGTH <- 121
 x = y = seq(-HALF_WIDTH, HALF_WIDTH, length.out = SIDE_LENGTH)  # c(-0.5,0.5), grid spacing 0.02
 S.coord.grid = expand.grid(x,y)
 cond_site = data.frame("x" = 0,"y" = 0)
 
 # Generate GRF
-# thet = pi/32
-# anis = matrix(c(2,1,1,0.5),2,2) %*% rbind(c(cos(thet),sin(thet)),c(-sin(thet),cos(sin(thet)))) #matrix(c(2,1,1,2),2,2)
-# plot(S.coord.grid)
 anis = matrix(c(2,1,1,1.5),2,2)
 S.coord.grid.anis = t(apply(S.coord.grid,1,function(vec){
   vec = matrix(vec,ncol=1)
   return(as.numeric(anis %*% vec))
 }))
-# plot(S.coord.grid.anis)
-
-# range=0.3
-# nu=2.5
-# cov.fn = cov.model("Matern", range=range, nu = nu)
-range=0.3
+range=9#0.3
 sigma=1
 cov.fn = function(h) {
   h = h/range
@@ -68,7 +58,6 @@ for(rep in 1:N.beta){
     for (simulation in 1:N.rep){
       rf = generateGaussian.truncnorm(generator=gen, cond_val=u, exceedance = TRUE)
       rf$grid = S.coord.grid.anis
-      # plotRandomField.v2(rf,x,y,thresh=u)
       ep = extent.profile(rf, u, x0 = cond_site)
       epys = cbind(epys, ep$y)
       ler = proportion.range(ep, 1)
@@ -83,7 +72,7 @@ for(rep in 1:N.beta){
   
   beta.est.vec = c(beta.est.vec,beta.est)
   print(beta.est.vec)
-  save(beta.est.vec,file="SSGaussAnisotropic_SqExp.RData")
+  save(beta.est.vec,file="SSGaussAnisotropic.RData")
 }
 
 # hist(beta.est.vec)

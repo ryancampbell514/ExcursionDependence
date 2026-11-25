@@ -3,14 +3,11 @@ library(this.path)
 library(SpatialExtremes)
 library(fields)
 library(evd)
-# library(mev)
 library(geoR)
 library(this.path)
 library(plotly)
 setwd(this.path::here())
-#setwd("/home/rcampbell/nice/SimStudy")
 
-# install.packages("~/nice/Local-Excursion-Set-Coefficients/ExcursionSets_0.0.4.tar.gz")
 library(ExcursionSets)
 
 library(quantreg)
@@ -19,24 +16,15 @@ source("../Functions.R")
 
 ##############################################################################
 
-HALF_WIDTH <- 0.5 
+HALF_WIDTH <- 15#0.5 
 SIDE_LENGTH <- 121
 x = y = seq(-HALF_WIDTH, HALF_WIDTH, length.out = SIDE_LENGTH)  # c(-0.5,0.5), grid spacing 0.02
 S.coord.grid = expand.grid(x,y)
 cond_site = data.frame("x" = 0,"y" = 0)
 
 # Generate GRF
-# k.df=3
-library(argparse)
-parser <- ArgumentParser()
-parser$add_argument("--df", type = "integer", default=3, required = TRUE)
-args <- parser$parse_args()
-k.df <- args$df
-# range=0.3
-# nu=2.5
-# cov.fn = cov.model("Matern", range=range, nu = nu)
-range=0.3
-# range = 0.341
+k.df <- 3
+range=9#0.3
 sigma=1
 cov.fn = function(h) {
   h = h/range
@@ -79,8 +67,6 @@ for(rep in 1:N.beta){
   
   beta.est.vec = c(beta.est.vec,beta.est)
   print(beta.est.vec)
-  save(beta.est.vec,file=paste0("SSChisq_df",k.df,"_SqExp.RData"))
+  save(beta.est.vec,file=paste0("SSChisq_df",k.df,".RData"))
 }
-
-# hist(beta.est.vec)
 
