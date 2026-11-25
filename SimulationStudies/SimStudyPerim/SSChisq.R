@@ -70,7 +70,7 @@ for(rep in 1:N.rep){
   }
   
   rm(bf,rf)
-  base::save.image(paste0("SSChisq_df",k.df,"_lowerthresh_higherrange.RData"))
+  base::save.image(paste0("SSChisq_df",k.df,".RData"))
 }
 
 ##########################
@@ -78,7 +78,7 @@ for(rep in 1:N.rep){
 rm(list=ls())
 library(dplyr)
 setwd(this.path::here())
-load("/scratch/rcampbell/nice/SimStudyPerimeter_FFT/SSChisq_df3_lowerthresh_higherrange.RData")
+load("SSChisq_df",k.df,".RData")
 res.df = res.df[1:120260,]
 head(res.df)
 
@@ -89,26 +89,23 @@ C1.chisq = function(p,k=k.df,lam=lambda.true){
     exp(-0.5*(k+ sqrt(2*k)*u))
 }
 
-# # beta(p1,p2) plots
-# p.low = 1-10^seq(log10(0.4), -14, length.out = 1000)
-# p.up = 0.5*(p.low+1)
-# betap1p2.chisq.true = apply(cbind(p.low,p.up),1,function(p1p2){
-#   (log(C1.chisq(p1p2[1]))-log(C1.chisq(p1p2[2])) -
-#      log((1-p1p2[1])/(1-p1p2[2]))) /
-#     log(log(1-p1p2[1])/log(1-p1p2[2]))
-# })
-# pdf("../figs/beta_p1p2_chisq.pdf",width=6.5,height=6)
-# par(mfrow=c(1,1),pty="m",mar = c(5.1, 5.5, 4.1, 2.1),cex.lab=1.5)
-# plot(p.low,betap1p2.chisq.true,type="l",xlab=expression(p),ylim=c(-0.05,0.7),
-#      ylab=expression(beta(p,0.5(p+1))),lwd=2)
-# abline(h=0.5,lty=3,col="red",lwd=2)
-# dev.off()
-# 
+# beta(p1,p2) plots
+p.low = 1-10^seq(log10(0.4), -14, length.out = 1000)
+p.up = 0.5*(p.low+1)
+betap1p2.chisq.true = apply(cbind(p.low,p.up),1,function(p1p2){
+  (log(C1.chisq(p1p2[1]))-log(C1.chisq(p1p2[2])) -
+     log((1-p1p2[1])/(1-p1p2[2]))) /
+    log(log(1-p1p2[1])/log(1-p1p2[2]))
+})
+par(mfrow=c(1,1),pty="m",mar = c(5.1, 5.5, 4.1, 2.1),cex.lab=1.5)
+plot(p.low,betap1p2.chisq.true,type="l",xlab=expression(p),ylim=c(-0.05,0.7),
+     ylab=expression(beta(p,0.5(p+1))),lwd=2)
+abline(h=0.5,lty=3,col="red",lwd=2)
+
 # Perimeter density estimation plots
 res.df.perims = res.df %>% mutate(C1.est = 0.5*perim / global.length^2)
 pp = seq(p.vals[1],1,length.out=1000)
 C1.true = sapply(pp,C1.chisq)
-pdf("../figs/C1Chisq.pdf",width=5,height=4.5)
 plot(NULL,
      xlim=range(pp),ylim=range(c(C1.true,res.df.perims$C1.est),na.rm=T),
      xlab="p",ylab=expression(C*"*"[1](p)))
@@ -119,21 +116,16 @@ spsUtil::quiet(
   })
 )
 lines(pp,C1.true,lwd=2,col="red")
-dev.off()
 
 p.idx.pairs = t(combn(1:length(p.vals),2))
-# p.idx.pairs = p.idx.pairs[1:9,]
-# set.seed(12)
 grp.len=30
 beta.med.res = apply(p.idx.pairs,1,function(p.idx){
   p.idx1=p.idx[1]
   p.idx2=p.idx[2]
-  # set.seed(13)
   perim1 = res.df %>% filter(p==p.vals[p.idx1]) %>% select(perim) %>% unlist() %>% unname() #%>% sample()
   perim2 = res.df %>% filter(p==p.vals[p.idx2]) %>% select(perim) %>% unlist() %>% unname() #%>% sample()
   beta.est = (log(perim1) - log(perim2) - log((1-p.vals[p.idx1])/(1-p.vals[p.idx2])))/
     log(log(1-p.vals[p.idx1])/log(1-p.vals[p.idx2]))
-  # beta.med = beta.est
   beta.med =  sapply((1:floor(length(beta.est)/grp.len))*grp.len - grp.len+1,
                      function(start.idx) {
                        median((beta.est[start.idx:(start.idx+grp.len)])[is.finite(beta.est[start.idx:(start.idx+grp.len)])])
@@ -144,27 +136,14 @@ beta.med.res = apply(p.idx.pairs,1,function(p.idx){
     log(log(1-p.vals[p.idx1])/log(1-p.vals[p.idx2]))
   return(list(beta.med=beta.med,beta.true=beta.true))
 })
-bias.skeweness <- data.frame(
-  setting = seq_along(beta.med.res),
-  mean = sapply(beta.med.res, function(lst) mean(lst$beta.med[is.finite(lst$beta.med)])),
-  bias = sapply(beta.med.res, function(lst) {
-    mean(lst$beta.med[is.finite(lst$beta.med)]) - lst$beta.true
-  }),
-  abs_bias = abs(sapply(beta.med.res, function(lst) {
-    mean(lst$beta.med[is.finite(lst$beta.med)]) - lst$beta.true
-  })),
-  skewness = sapply(beta.med.res, function(lst) {
-    moments::skewness(lst$beta.med[is.finite(lst$beta.med)])
-  })
-)
 
+best.p = 170
 bias.skeweness$rank_bias <- rank(bias.skeweness$abs_bias)
 bias.skeweness$rank_skew <- rank(abs(bias.skeweness$skewness))
 bias.skeweness$total_rank <- bias.skeweness$rank_bias + bias.skeweness$rank_skew
 bias.skeweness <- bias.skeweness[order(bias.skeweness$total_rank), ]
 
 best.p = 170  # for the Smith model
-# best.p = bias.skeweness[1,1]#which.min(sapply(beta.med.res,function(lst) abs(median(lst$beta.med[is.finite(lst$beta.med)])-lst$beta.true)))
 p1p2.chisq = p.vals[p.idx.pairs[best.p,]]
 beta.chisq.est =  beta.med.res[[best.p]]$beta.med
 beta.chisq.est = beta.chisq.est[is.finite(beta.chisq.est)]
