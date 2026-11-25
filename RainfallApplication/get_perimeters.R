@@ -13,11 +13,9 @@ sourceCpp("../excursion-sets/binary_fields.cpp")
 source("../excursion-sets/excursions.R")
 
 # load in the raster data, hourly rainfall in france for a 1km x 1km grid
-files <- list.files(
-  "exprank_data",
-  pattern = "\\.tif$",
-  full.names = TRUE
-)
+
+files = "/scratch/rcampbell/nice/Comephore_data/exp_data_v2/raster_exprank.tif"
+# files = "/scratch/rcampbell/nice/Comephore_data/exp_data_v2/raster_expsmoothGP.tif"
 r <- rast(files)
 dim(r)
 object.size(r)
@@ -34,6 +32,13 @@ cells <- terra::cellFromXY(r, crds(pts_proj))
 vals.at.s0 <- t(terra::extract(r, pts_proj))
 vals.at.s0 = vals.at.s0[-1,]
 
+# # Check if the margins are Exp(1)  (in the right tails)
+# par(mfrow=c(2,2))
+# for(i in 1:ncol(vals.at.s0)){
+#   hist(vals.at.s0[,i],freq=F)
+#   lines(seq(0,30,by=0.1),dexp(seq(0,30,by=0.1)))
+# }
+
 # set the threshold values for the excursion sets
 # p.vals1 = seq(0.7,0.95,by=0.05)
 # p.vals2 = seq(0.99,0.999,by=0.001)
@@ -42,6 +47,7 @@ vals.at.s0 = vals.at.s0[-1,]
 # p.vals = 1-exp(-exp(x.axis))[-c(1:6)]  # needed, because of gaps in data due to zero-inflation
 p.vals = seq(0.95,0.999,by=0.0025)
 # u.vals = qexp(p.vals)
+# p.vals = seq(0.8,0.99,by=0.01)
 
 # window.sizes = c(seq(10,50,by=10),NA)  # crop radii (in km)
 # finite.rads = window.sizes[is.finite(window.sizes)]
@@ -82,13 +88,29 @@ iy <- nrow(r) - rc0[1] + 1
 # rc0 <- rowColFromCell(r, cell0)
 # ix <- rc0[2]; iy <- nrow(r) - rc0[1] + 1
 
+# Crop 
+RR = 100  # in km
+r.obs = r[[5]]
+buf <- buffer(pts_proj[loc.idx,], width = RR*1000)  # width input is in meters
+r.obs.crop = mask(r.obs,buf)
+plot(r.obs)
+plot(r.obs.crop)
+
+u.p = qexp(p.vals[1])
+bf1 = (r.obs > u.p)*1
+bf2 = (r.obs.crop > u.p)*1
+
+
+
 results <- vector("list", 0) #vector("list", dim(r)[3])  # or a growable list, appended with [[]]
 
 n.obs = dim(r)[3]
 for (obs.idx in 1:n.obs) {
-  cat("\tProgress:",100*obs.idx / n.obs,"%\n")
+  cat("\tProgress:",round(100*obs.idx / n.obs,2),"%\n")
   
   if (vals.at.s0[obs.idx, loc.idx] < qexp(p.vals[1])) next
+  
+  # break
   r.i <- r[[obs.idx]]
   r.i.mat <- terra::as.matrix(r.i, wide = TRUE)  # this is a bit slow
   
@@ -143,7 +165,7 @@ for (obs.idx in 1:n.obs) {
     results[[length(results) + 1]] <- row
   }
   res.df <- do.call(rbind, results)
-  save(res.df, file = paste0("perims_loc", loc.idx, "_betterthresh.RData"))
+  save(res.df, file = paste0("perims_loc", loc.idx, "_better_v2.RData"))
 }
 
 stop("Finished.")
@@ -152,8 +174,8 @@ stop("Finished.")
 
 library(dplyr)
 
-beta.all = lapply(1:4, function(loc.idx) {
-  load(paste0("/scratch/rcampbell/nice/Comephore_data/perims_loc",loc.idx,"_betterthresh.RData"))
+beta.all = lapply(1:3, function(loc.idx) {
+  load(paste0("/scratch/rcampbell/nice/Comephore_data/perims_loc",loc.idx,"_better_v2.RData"))
   # View(res.df)
   # head(res.df,10)
   
@@ -167,7 +189,7 @@ beta.all = lapply(1:4, function(loc.idx) {
   # 
   p.vals = sort(unique(res.df$p))
   p.idx.pairs = t(combn(1:length(p.vals),2))
-  p.idx.pairs = p.idx.pairs[apply(p.idx.pairs,1,function(vec) all(vec>5)),]
+  # p.idx.pairs = p.idx.pairs[apply(p.idx.pairs,1,function(vec) all(vec>5)),]
   # p.idx.pairs = p.idx.pairs[apply(p.idx.pairs,1,function(vec) all(vec>2 & vec < 7)),]
   beta.est.lst = lapply(res.split, function(lst){
     lst = lst %>% select(-window.size,-obs.idx)
@@ -203,21 +225,22 @@ beta.all = lapply(1:4, function(loc.idx) {
 # beta.true.all.loc = c(1.41,1.19,0.4,0.9)
 # for(rad.idx in 1:6){
 rad.idx = 1
-# par(mfrow=c(2,2))
-for(loc.idx in 1:4){
+par(mfrow=c(1,3))
+for(loc.idx in 1:3){
   beta.est.lst = beta.all[[loc.idx]]
   
-  pdf(paste0("beta_hist_loc",loc.idx,".pdf"),width=6,height=5)
-  par(mfrow=c(1,1),pty="m")
+  # pdf(paste0("beta_hist_loc",loc.idx,".pdf"),width=6,height=5)
+  # par(mfrow=c(1,1),pty="m")
   hist(beta.est.lst[[rad.idx]][,1],breaks=20,
        main=NA,
        xlab=expression("Estimated"~beta),
        freq=F)
-  # abline(v=beta.true.all.loc[loc.idx],col="black",lwd=2)
-  # abline(v=mean(beta.est.lst[[6]][,1],na.rm=T),col="blue",lwd=2)
+  # # abline(v=beta.true.all.loc[loc.idx],col="black",lwd=2)
+  # abline(v=mean(beta.est.lst[[rad.idx]][,1],na.rm=T),col="green",lwd=2)
   abline(v=median(beta.est.lst[[rad.idx]][,1],na.rm=T),col="blue",lwd=2)
-  # print(round(median(beta.est.lst[[rad.idx]][,1],na.rm=T),2))
-  dev.off()
+  # dev.off()
+  print(round(median(beta.est.lst[[rad.idx]][,1],na.rm=T),2))
+  
 }
 # }
 
